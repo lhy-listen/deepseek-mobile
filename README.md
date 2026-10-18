@@ -20,7 +20,14 @@
 
 ## 下载
 
-- [Releases](https://github.com/lhy-listen/deepseek-mobile/releases) — 最新 APK（约 50 MB，Android 8.0+ / arm64）
+- [Releases](https://github.com/lhy-listen/deepseek-mobile/releases) — 最新 APK（约 60 MB，Android 8.0+ / arm64）
+
+### 安装提示
+
+从 v1.1.1 起，APK 使用独立的 release 证书，并同时包含 **V1（JAR）+ V2 + V3** 三种签名，兼容 OPPO / vivo 等对签名较敏感的安装器。
+
+- 如果手机提示「没有签名文件」或「签名不一致」，请先卸载旧版本，再安装新包；
+- 如果仍然失败，可以换用系统「文件管理 → 安装包」打开，而不是第三方安装器。
 
 ---
 

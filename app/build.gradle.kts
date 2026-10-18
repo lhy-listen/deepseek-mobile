@@ -1,3 +1,4 @@
+import java.io.FileInputStream
 import java.util.Properties
 
 plugins {
@@ -7,6 +8,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        FileInputStream(keystorePropsFile).use { load(it) }
+    }
+}
+val hasReleaseKeystore = keystorePropsFile.exists() && keystoreProps.getProperty("storeFile") != null
+
 android {
     namespace = "com.lhy.deepseekmobile"
     compileSdk = 36
@@ -15,8 +24,24 @@ android {
         applicationId = "com.lhy.deepseekmobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "1.1.1"
+    }
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+                // v1 (JAR) keeps older/vendor installers happy; v2/v3 for modern Android.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = false
+            }
+        }
     }
 
     buildTypes {
@@ -25,11 +50,17 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = !project.hasProperty("noMinify")
+            isShrinkResources = !project.hasProperty("noMinify")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Personal installable build: signed with the local debug key so it can be sideloaded.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = when {
+                project.hasProperty("unsignedBuild") -> null
+                hasReleaseKeystore -> signingConfigs.getByName("release")
+                else -> {
+                    // Fallback so a fresh checkout can still build an installable APK.
+                    signingConfigs.getByName("debug")
+                }
+            }
         }
     }
 

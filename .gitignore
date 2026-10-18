@@ -24,4 +24,8 @@ test-log.txt
 *.log
 _scratch/
 
+# Signing (never commit)
+keystore/
+keystore.properties
+
 dist/
