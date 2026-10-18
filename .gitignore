@@ -23,3 +23,5 @@ test-log.txt
 *-log.txt
 *.log
 _scratch/
+
+dist/
