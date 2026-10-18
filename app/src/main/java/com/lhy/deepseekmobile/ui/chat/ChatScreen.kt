@@ -1,5 +1,7 @@
 package com.lhy.deepseekmobile.ui.chat
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -62,10 +64,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
 import com.lhy.deepseekmobile.data.Message
 import com.lhy.deepseekmobile.data.Role
 import com.lhy.deepseekmobile.ui.AppViewModel
@@ -86,6 +90,8 @@ fun ChatScreen(
     val settings by vm.settings.collectAsStateWithLifecycle()
     val modes by vm.modes.collectAsStateWithLifecycle()
     val summaries by vm.conversations.collectAsStateWithLifecycle()
+    val voice by vm.voice.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     val mode = vm.activeMode
     val model = vm.activeModel
@@ -111,12 +117,27 @@ fun ChatScreen(
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) vm.attachFolder(uri)
     }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            vm.toggleVoice()
+        } else {
+            scope.launch { snackbar.showSnackbar("没有麦克风权限，无法语音输入") }
+        }
+    }
 
     LaunchedEffect(session.notice) {
         val notice = session.notice
         if (!notice.isNullOrBlank()) {
             snackbar.showSnackbar(notice)
             vm.clearNotice()
+        }
+    }
+
+    LaunchedEffect(voice.error) {
+        val error = voice.error
+        if (!error.isNullOrBlank()) {
+            snackbar.showSnackbar(error)
+            vm.voice.clearError()
         }
     }
 
@@ -248,9 +269,23 @@ fun ChatScreen(
                         mode = mode,
                         model = model,
                         models = settings.models,
+                        voice = voice,
                         onDraft = vm::setDraft,
                         onSend = { vm.send() },
                         onStop = { vm.stop() },
+                        onMic = {
+                            val granted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO,
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (voice.listening || voice.busy) {
+                                vm.toggleVoice()
+                            } else if (granted) {
+                                vm.toggleVoice()
+                            } else {
+                                micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
                         onPickImages = { imagePicker.launch("image/*") },
                         onPickFiles = { filePicker.launch(arrayOf("*/*")) },
                         onPickFolder = { folderPicker.launch(null) },

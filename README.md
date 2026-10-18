@@ -14,6 +14,9 @@
   <img src="docs/settings.png" width="30%" alt="设置" />
   <img src="docs/drawer.png" width="30%" alt="历史抽屉" />
 </p>
+<p align="center">
+  <img src="docs/voice.png" width="46%" alt="语音输入" />
+</p>
 
 ## 下载
 
@@ -38,6 +41,7 @@
   - 模型支持视觉时，直接以 `image_url` 发送；
   - 否则可配置独立视觉模型（如 Qwen-VL / GLM-4V）先做描述；
   - 都没有时自动走**本地离线 OCR**（ML Kit 中文模型），截图里的文字直接进上下文。
+- **语音输入**：输入框麦克风一点就说；默认调用系统语音服务（零配置），也可接 OpenAI Whisper / SiliconFlow / Groq 等 `/audio/transcriptions` 接口。识别完用当前对话模型自动纠正同音字、断句和口头禅，支持自定义术语表。
 - **文件与文件夹**：通过系统文件选择器读取代码 / Markdown / CSV / JSON / PDF / DOCX / PPTX；选择文件夹会递归扫描，生成目录树 + 文件内容块，自动跳过二进制、依赖目录与超大文件。
 - **模式（Mode）**：每个模式 = 图标 + 系统提示词 + 模型 + 温度 + 最大输出 + 快捷提示。内置 8 个，可新建、复制、编辑、删除、导入导出 JSON。
 - **对话管理**：历史抽屉、搜索、置顶、重命名、删除、编辑重发、重新生成。
@@ -110,6 +114,7 @@ app/src/main/java/com/lhy/deepseekmobile/
 
 - API Key、对话、附件文本只写入应用私有目录；
 - 除你填写的接口地址外，不向任何第三方发送数据；
+- 云端语音转写时，录音只上传到你填写的转写接口，转写完成后本地临时文件立即删除；
 - 备份 JSON 含 API Key，请自行妥善保管。
 
 ## 许可

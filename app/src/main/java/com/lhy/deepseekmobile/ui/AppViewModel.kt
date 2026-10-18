@@ -22,6 +22,7 @@ import com.lhy.deepseekmobile.net.WireMessage
 import com.lhy.deepseekmobile.util.AppJson
 import com.lhy.deepseekmobile.util.CompactJson
 import com.lhy.deepseekmobile.util.Tokens
+import com.lhy.deepseekmobile.voice.VoiceController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -60,6 +61,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _session = MutableStateFlow(ChatSession())
     val session: StateFlow<ChatSession> = _session.asStateFlow()
+
+    val voice = VoiceController(
+        context = context,
+        settingsProvider = { settings.value },
+        api = container.api,
+        scope = viewModelScope,
+        onText = { appendVoice(it) },
+        onNotice = { message -> _session.update { it.copy(notice = message) } },
+    )
 
     private var streamJob: Job? = null
     private var saveJob: Job? = null
@@ -102,6 +112,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun newChat() {
         if (_session.value.streaming) stop()
+        voice.cancel()
         viewModelScope.launch { persistCurrent() }
         newChatInternal()
     }
@@ -119,6 +130,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun openChat(id: String) {
         if (_session.value.conversation?.id == id) return
         if (_session.value.streaming) stop()
+        voice.cancel()
         val previous = _session.value.conversation
         viewModelScope.launch {
             if (previous != null && dirty) persistConversation(previous)
@@ -173,6 +185,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setDraft(text: String) {
         _session.update { it.copy(draft = text) }
+    }
+
+    fun toggleVoice() {
+        if (!_session.value.streaming) voice.toggle()
+    }
+
+    private fun appendVoice(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        _session.update { session ->
+            val draft = session.draft
+            val separator = when {
+                draft.isEmpty() -> ""
+                draft.endsWith("\n") || draft.endsWith(" ") -> ""
+                else -> " "
+            }
+            session.copy(draft = draft + separator + trimmed)
+        }
     }
 
     fun removePending(id: String) {
@@ -308,6 +338,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun send(text: String = _session.value.draft, reuseUser: Message? = null) {
         val snapshot = _session.value
         if (snapshot.streaming) return
+        if (voice.state.value.listening) voice.cancel()
         val trimmed = text.trim()
         if (reuseUser == null && trimmed.isEmpty() && snapshot.pending.isEmpty()) return
 

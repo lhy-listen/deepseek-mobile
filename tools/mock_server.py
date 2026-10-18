@@ -40,6 +40,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("content-length") or 0)
         raw = self.rfile.read(length) if length else b"{}"
+
+        if self.path.rstrip("/").endswith("/audio/transcriptions"):
+            self._json(200, {"text": "嗯那个我们今天就是说讨论一下这个方案然后看看怎么落地"})
+            return
+
         try:
             payload = json.loads(raw or b"{}")
         except Exception:
@@ -59,6 +64,23 @@ class Handler(BaseHTTPRequestHandler):
                 last_text = content if isinstance(content, str) else " ".join(
                     p.get("text", "") for p in content if isinstance(p, dict)
                 )
+        system_text = " ".join(
+            m.get("content", "") for m in messages
+            if isinstance(m, dict) and m.get("role") == "system" and isinstance(m.get("content"), str)
+        )
+
+        if "语音转写校对" in system_text:
+            self._json(200, {
+                "id": "mock-proofread",
+                "object": "chat.completion",
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "我们今天讨论一下这个方案，然后看看怎么落地。"},
+                    "finish_reason": "stop",
+                }],
+                "usage": {"prompt_tokens": 60, "completion_tokens": 18, "total_tokens": 78},
+            })
+            return
 
         if has_image and not payload.get("stream"):
             self._json(200, {

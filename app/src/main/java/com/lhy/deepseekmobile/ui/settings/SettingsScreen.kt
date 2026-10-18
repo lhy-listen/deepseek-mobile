@@ -102,9 +102,14 @@ fun SettingsScreen(
     var visionBaseUrl by remember { mutableStateOf(settings.visionBaseUrl) }
     var visionApiKey by remember { mutableStateOf(settings.visionApiKey) }
     var visionModel by remember { mutableStateOf(settings.visionModel) }
+    var asrBaseUrl by remember { mutableStateOf(settings.asrBaseUrl) }
+    var asrApiKey by remember { mutableStateOf(settings.asrApiKey) }
+    var asrModel by remember { mutableStateOf(settings.asrModel) }
+    var glossary by remember { mutableStateOf(settings.voiceGlossary) }
 
     var showKey by remember { mutableStateOf(false) }
     var showVisionKey by remember { mutableStateOf(false) }
+    var showAsrKey by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var addModel by remember { mutableStateOf(false) }
     var clearConfirm by remember { mutableStateOf(false) }
@@ -478,6 +483,135 @@ fun SettingsScreen(
                                     onCheckedChange = { vm.updateSettings { s -> s.copy(showUsage = it) } },
                                 )
                             }
+                        }
+                    }
+
+                    SectionLabel("语音输入")
+                    GlassCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(
+                                "识别方式",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = scheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(
+                                    selected = settings.asrMode == "system",
+                                    onClick = { vm.updateSettings { s -> s.copy(asrMode = "system") } },
+                                    label = { Text("系统识别") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = scheme.primary.copy(alpha = 0.16f),
+                                    ),
+                                )
+                                FilterChip(
+                                    selected = settings.asrMode == "cloud",
+                                    onClick = { vm.updateSettings { s -> s.copy(asrMode = "cloud") } },
+                                    label = { Text("云端转写") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = scheme.primary.copy(alpha = 0.16f),
+                                    ),
+                                )
+                            }
+                            Text(
+                                if (settings.asrMode == "system") {
+                                    "调用手机自带的语音服务（Google / 厂商），无需额外 Key；不支持时请改用云端转写。"
+                                } else {
+                                    "上传 WAV 到兼容 /audio/transcriptions 的接口，中文识别通常比系统服务更稳。"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = scheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+
+                            if (settings.asrMode == "cloud") {
+                                Spacer(Modifier.height(10.dp))
+                                SettingsTextField(
+                                    label = "转写接口地址",
+                                    value = asrBaseUrl,
+                                    onChange = {
+                                        asrBaseUrl = it
+                                        vm.updateSettings { s -> s.copy(asrBaseUrl = it.trim()) }
+                                    },
+                                    placeholder = "https://api.openai.com/v1",
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                SettingsTextField(
+                                    label = "转写 Key",
+                                    value = asrApiKey,
+                                    onChange = {
+                                        asrApiKey = it
+                                        vm.updateSettings { s -> s.copy(asrApiKey = it.trim()) }
+                                    },
+                                    placeholder = "sk-…",
+                                    visualTransformation = if (showAsrKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                    trailing = {
+                                        IconButton(onClick = { showAsrKey = !showAsrKey }) {
+                                            Icon(
+                                                if (showAsrKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                null,
+                                                tint = scheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    },
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                SettingsTextField(
+                                    label = "转写模型",
+                                    value = asrModel,
+                                    onChange = {
+                                        asrModel = it
+                                        vm.updateSettings { s -> s.copy(asrModel = it.trim()) }
+                                    },
+                                    placeholder = "whisper-1 / FunAudioLLM/SenseVoiceSmall / whisper-large-v3",
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "兼容 OpenAI Whisper、SiliconFlow、Groq 等提供 /audio/transcriptions 的服务。",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = scheme.onSurfaceVariant,
+                                )
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        "自动纠正转写",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = scheme.onSurface,
+                                    )
+                                    Text(
+                                        "用当前对话模型修正同音字、断句与口头禅，再放进输入框",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = scheme.onSurfaceVariant,
+                                    )
+                                }
+                                Switch(
+                                    checked = settings.voiceCorrect,
+                                    onCheckedChange = { vm.updateSettings { s -> s.copy(voiceCorrect = it) } },
+                                )
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "术语表（每行一个，纠正时优先保留）",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = scheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = glossary,
+                                onValueChange = {
+                                    glossary = it
+                                    vm.updateSettings { s -> s.copy(voiceGlossary = it) }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(100.dp),
+                                placeholder = { Text("例如：\nDeepSeek\n端侧推理\n张三") },
+                                textStyle = MaterialTheme.typography.bodySmall,
+                                colors = fieldColors(),
+                            )
                         }
                     }
 

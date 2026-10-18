@@ -125,6 +125,14 @@ data class AppSettings(
     val visionModel: String = "",
     val onboardingDone: Boolean = false,
     val lastConversationId: String? = null,
+    // Voice input
+    val asrMode: String = "system", // system | cloud
+    val asrBaseUrl: String = "https://api.openai.com/v1",
+    val asrApiKey: String = "",
+    val asrModel: String = "whisper-1",
+    val asrLanguage: String = "zh",
+    val voiceCorrect: Boolean = true,
+    val voiceGlossary: String = "",
 ) {
     val currentModel: ModelSpec get() = models.firstOrNull { it.id == currentModelId } ?: models.firstOrNull() ?: Defaults.models.first()
     val configured: Boolean get() = apiKey.isNotBlank()

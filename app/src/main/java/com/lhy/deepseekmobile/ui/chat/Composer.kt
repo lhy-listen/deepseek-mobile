@@ -1,5 +1,11 @@
 package com.lhy.deepseekmobile.ui.chat
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.InsertDriveFile
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,7 +80,9 @@ import com.lhy.deepseekmobile.ui.ChatSession
 import com.lhy.deepseekmobile.ui.components.EmojiTile
 import com.lhy.deepseekmobile.ui.theme.LocalDsPalette
 import com.lhy.deepseekmobile.util.Tokens
+import com.lhy.deepseekmobile.voice.VoiceState
 import java.io.File
+import kotlin.math.sin
 
 @Composable
 fun Composer(
@@ -81,9 +90,11 @@ fun Composer(
     mode: Mode,
     model: ModelSpec,
     models: List<ModelSpec>,
+    voice: VoiceState,
     onDraft: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
+    onMic: () -> Unit,
     onPickImages: () -> Unit,
     onPickFiles: () -> Unit,
     onPickFolder: () -> Unit,
@@ -143,7 +154,23 @@ fun Composer(
                     }
                 }
 
-                if (session.phase != null) {
+                if (voice.listening) {
+                    Row(
+                        Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        VoiceWave(voice.level)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = voice.partial.ifBlank { "正在听… 再点麦克风结束" },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (voice.partial.isBlank()) scheme.onSurfaceVariant else scheme.primary,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                } else if (voice.phase != null || session.phase != null) {
                     Row(
                         Modifier.padding(start = 12.dp, top = 6.dp, bottom = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -155,7 +182,7 @@ fun Composer(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            session.phase,
+                            voice.phase ?: session.phase.orEmpty(),
                             style = MaterialTheme.typography.labelMedium,
                             color = scheme.onSurfaceVariant,
                         )
@@ -175,6 +202,30 @@ fun Composer(
                         )
                     }
 
+                    IconButton(
+                        onClick = onMic,
+                        enabled = !session.streaming,
+                        modifier = Modifier.size(42.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (voice.listening) scheme.primary.copy(alpha = 0.16f)
+                                    else Color.Transparent
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = if (voice.listening) Icons.Rounded.Stop else Icons.Rounded.Mic,
+                                contentDescription = if (voice.listening) "结束语音输入" else "语音输入",
+                                tint = if (voice.listening) scheme.primary else scheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+
                     Box(
                         Modifier
                             .weight(1f)
@@ -183,9 +234,13 @@ fun Composer(
                     ) {
                         if (session.draft.isBlank()) {
                             Text(
-                                text = "发消息，或粘贴长文…",
+                                text = if (voice.listening && voice.partial.isNotBlank()) voice.partial
+                                else "发消息，或粘贴长文…",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = scheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                color = if (voice.listening && voice.partial.isNotBlank()) scheme.onSurface
+                                else scheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
                         }
                         BasicTextField(
@@ -612,6 +667,34 @@ fun ModelPickerSheet(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun VoiceWave(level: Float) {
+    val transition = rememberInfiniteTransition(label = "voice-wave")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart),
+        label = "voice-wave-phase",
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        repeat(4) { index ->
+            val wave = sin((phase * 2 * Math.PI + index * 1.4).toFloat())
+            val amplitude = 0.25f + 0.75f * level.coerceIn(0f, 1f)
+            val height = (5 + 13 * amplitude * (0.55f + 0.45f * wave)).dp
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .height(height)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
         }
     }
 }
